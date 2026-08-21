@@ -1,0 +1,23 @@
+*{box-sizing:border-box}
+body{margin:0;background:#f3f3f3;color:#222;font:14px/1.65 Arial,"Microsoft JhengHei",sans-serif}
+main{max-width:820px;margin:32px auto;padding:30px;background:#fff;border-radius:12px;box-shadow:0 3px 22px #0001}
+h1{margin:0 0 6px;font-size:25px}
+h2{font-size:18px;margin:0 0 10px}
+.intro{color:#666;margin:0 0 18px}
+section{border-top:1px solid #ddd;padding:22px 0}
+.section-desc,.note{color:#666}
+.setting{padding:13px 0;border-bottom:1px solid #eee}
+.setting:last-child{border-bottom:0}
+.title{font-weight:700;font-size:15px}
+.value{float:right;color:#c62828;font-weight:700}
+.setting p{margin:3px 0;color:#666;font-size:13px}
+.tip{color:#555!important}
+input[type=number]{display:block;width:180px;padding:7px;margin-top:8px;border:1px solid #ccc;border-radius:6px;font-size:14px}
+.checksetting{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.checksetting input{width:20px;height:20px;accent-color:#d32f2f}
+.preset-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+button{padding:9px 14px;border:0;border-radius:7px;background:#d32f2f;color:#fff;cursor:pointer;font-size:13px}
+button.secondary{background:#666}
+.bottom{display:flex;align-items:center;gap:10px;margin-top:20px}
+#saved{color:#388e3c}
+@media(max-width:650px){main{margin:0;border-radius:0}.preset-buttons{grid-template-columns:1fr 1fr}}

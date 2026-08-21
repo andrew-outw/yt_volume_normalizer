@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>YouTube Volume Normalizer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+    <h1>🔊 Volume Normalizer</h1>
+
+    <label class="switchrow">
+      <span>啟用自動音量平衡</span>
+      <input id="enabled" type="checkbox">
+    </label>
+
+    <div class="meter">
+      <div class="label">目前響度</div>
+      <div id="lufs" class="big">--</div>
+      <div id="gain" class="sub">Gain：--</div>
+    </div>
+
+    <label>
+      <span>目標 LUFS</span>
+      <select id="targetLUFS">
+        <option value="-30">-30 LUFS</option>
+        <option value="-29">-29 LUFS</option>
+        <option value="-28">-28 LUFS</option>
+        <option value="-27">-27 LUFS</option>
+        <option value="-26">-26 LUFS</option>
+        <option value="-25">-25 LUFS</option>
+        <option value="-24">-24 LUFS</option>
+        <option value="-23">-23 LUFS</option>
+        <option value="-22">-22 LUFS</option>
+        <option value="-21">-21 LUFS</option>
+        <option value="-20">-20 LUFS</option>
+        <option value="-19">-19 LUFS</option>
+        <option value="-18">-18 LUFS</option>
+        <option value="-17">-17 LUFS</option>
+        <option value="-16">-16 LUFS</option>
+        <option value="-15">-15 LUFS</option>
+        <option value="-14">-14 LUFS</option>
+        <option value="-13">-13 LUFS</option>
+        <option value="-12">-12 LUFS</option>
+        <option value="-11">-11 LUFS</option>
+        <option value="-10">-10 LUFS</option>
+        <option value="-9">-9 LUFS</option>
+        <option value="-8">-8 LUFS</option>
+        <option value="-7">-7 LUFS</option>
+        <option value="-6">-6 LUFS</option>
+        <option value="custom">自訂...</option>
+      </select>
+    </label>
+
+    <label id="customTargetRow" class="custom-row hidden">
+      <span>自訂目標 <small>-30 ～ -6 LUFS</small></span>
+      <input id="customTarget" type="number" min="-30" max="-6" step="0.1">
+    </label>
+
+    <button id="enableAudio">在目前 YouTube 頁面啟用</button>
+    <button id="options" class="secondary">⚙ 進階設定</button>
+
+    <p id="message" class="message"></p>
+    <p class="pinhint">💡 若要固定在 Chrome 右上角：點工具列上的「🧩 擴充功能」→ 找到本擴充功能 → 按「📌 固定」。</p>
+    <div class="setting checksetting">
+        <div>
+        <div class="title" style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Show Overlay <span id="showOverlayValue" class="value"></span></span>
+          <input id="showOverlay" type="checkbox">
+        </div>
+      </div>
+
+        
+      </div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

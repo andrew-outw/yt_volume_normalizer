@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Volume Normalizer",
+  "version": "1.1.0",
+  "description": "Automatically normalizes YouTube playback loudness with K-weighted loudness measurement, auto gain, compression and limiting.",
+  "minimum_chrome_version": "110",
+  "permissions": [
+    "storage","tabs"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "YouTube Volume Normalizer",
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/loudness-worklet.js"
+      ],
+      "matches": [
+        "https://www.youtube.com/*"
+      ]
+    }
+  ]
+}
