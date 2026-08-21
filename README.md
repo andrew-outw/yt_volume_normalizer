@@ -15,14 +15,23 @@ Chrome Manifest V3 extension that normalizes YouTube playback loudness.
 - Popup and options page.
 - No external JavaScript or remote code.
 
-## Install for development
+## Development Installation
 
-1. Open `chrome://extensions/`.
-2. Enable Developer mode.
+1. Go to `chrome://extensions/`.
+2. Enable "Developer mode" in the top right corner.
 3. Click "Load unpacked".
 4. Select this project directory.
-5. Open/reload YouTube.
-6. Click the extension icon and press "在目前 YouTube 頁面啟用".
+5. Open or refresh YouTube.
+6. Click the extension icon and select "Enable on Current YouTube Page".
+
+## 開發者安裝指南
+
+1. 開啟 Chrome 網址列並輸入 `chrome://extensions/`。
+2. 開啟右上角的「開發人員模式」。
+3. 點擊「載入未封裝項目」。
+4. 選擇本專案資料夾。
+5. 開啟或重新整理 YouTube 頁面。
+6. 點擊擴充功能圖示，並按「在目前 YouTube 頁面啟用」。
 
 The first activation is intentionally user-triggered so AudioContext can be resumed from a user gesture.
 
@@ -52,4 +61,4 @@ This extension does not download, modify, or transmit YouTube media. It processe
 - Advanced settings now show the current value, unit, explanation and recommended range.
 - Added a clear Chrome toolbar pinning hint.
 - Added a reset-to-recommended button.
-- Fixed terminology to consistently use LUFS (not LUVS).
+- Fixed terminology to consistently use LUFS.
