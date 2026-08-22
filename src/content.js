@@ -110,23 +110,12 @@
     return el;
   }
   
-  // 監聽來自 popup 的即時控制訊息
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "TOGGLE_OVERLAY") {
-    if (message.showOverlay) {
-      if (typeof ensureOverlay === "function") ensureOverlay();
-    } else {
-      if (typeof removeOverlay === "function") removeOverlay();
-    }
-  }
-});
-
-// 同時在頁面初次載入時根據 storage 設定決定是否顯示
-chrome.storage.sync.get({ showOverlay: true }, (res) => {
-  if (res.showOverlay && typeof ensureOverlay === "function") {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "sync" || !changes.showOverlay) return;
+    settings.showOverlay = !!changes.showOverlay.newValue;
     ensureOverlay();
-  }
-});
+    updateOverlay();
+  });
 
   function updateOverlay() {
     const el = document.getElementById("ytvn-overlay");

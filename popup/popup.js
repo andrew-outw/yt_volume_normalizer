@@ -108,18 +108,10 @@ showOverlayCheckbox.addEventListener("change", async () => {
   const isEnabled = showOverlayCheckbox.checked;
   updateLabel(isEnabled);
 
-  // 儲存設定
-  await chrome.storage.sync.set({ showOverlay: isEnabled });
-
-  // 查詢當前開啟的 YouTube 分頁並發送訊息
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab && tab.id) {
-    chrome.tabs.sendMessage(tab.id, {
-      action: "TOGGLE_OVERLAY",
-      showOverlay: isEnabled
-    }).catch(() => {
-      // 避免在非 YouTube 頁面或 content script 尚未載入時噴出錯誤
-    });
+  try {
+    await send({ type: "SET_SETTINGS", settings: { showOverlay: isEnabled } });
+  } catch (e) {
+    message.textContent = e.message;
   }
 });
 
