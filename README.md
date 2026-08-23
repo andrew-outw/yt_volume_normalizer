@@ -6,7 +6,7 @@ Chrome Manifest V3 extension that normalizes YouTube playback loudness.
 
 Get the latest pre-packaged release:
 
-[![Download Release](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge&logo=github)](https://github.com/outingann/yt_volume_normalizer/releases/latest)
+[![Download Release](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge&logo=github)](https://github.com/andrew-outw/yt_volume_normalizer/releases/latest)
 
 
 
