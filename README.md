@@ -1,4 +1,4 @@
-# YouTube Volume Normalizer v1.1.0
+# YouTube Volume Normalizer v1.1.2
 
 Chrome Manifest V3 extension that normalizes YouTube playback loudness.
 
@@ -60,6 +60,21 @@ Do not put the parent folder itself inside the ZIP.
 The loudness meter follows the structure of ITU-R BS.1770: K-weighting, 400 ms blocks, 75% overlap, absolute gating and a relative gate. The browser audio graph still depends on the YouTube media element exposing audio to Web Audio. If a particular Chrome/YouTube player build outputs silence after connecting the media element to Web Audio, the next implementation should use a tab-capture architecture instead.
 
 This extension does not download, modify, or transmit YouTube media. It processes the playback audio locally in the browser.
+
+
+## v1.1.2 changes
+
+- Delayed initial loudness calibration until valid audio blocks have accumulated.
+- Started the analysis timer from the first valid audio block instead of graph initialization.
+- Prevented cached calibration loading from racing with the first live calibration.
+- Added `[YTVN]` console logs for initialization, analysis progress and calibration results.
+
+
+## v1.1.1 changes
+
+- Reduced volume differences after refreshing YouTube by reusing per-video calibration.
+- Applied the initial gain directly after analysis instead of ramping up from 0 dB.
+- Moved calibration storage access out of audio graph initialization so playback is not blocked.
 
 
 ## v1.1.0 changes

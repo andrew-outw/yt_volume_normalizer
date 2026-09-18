@@ -29,9 +29,12 @@
   let initialized = false;
   let currentGainDb = 0;
   let targetGainDb = 0;
+  let gainCalibrated = false;
   let lastLUFS = null;
   let firstMeasurementAt = 0;
+  let calibrationRestorePending = false;
   let lastVideoSignature = "";
+  let calibrationKey = "";
 
   const log = (...a) => console.debug("[YTVN]", ...a);
 
@@ -41,6 +44,24 @@
 
   function dbToLinear(db) {
     return Math.pow(10, db / 20);
+  }
+
+  function getCalibrationKey() {
+    const url = new URL(location.href);
+    const videoId = url.searchParams.get("v") || url.pathname.match(/^\/shorts\/([^/]+)/)?.[1];
+    if (!videoId) return "";
+    const profile = [
+      settings.targetLUFS,
+      settings.maxBoost,
+      settings.maxCut,
+      settings.analysisSeconds,
+      settings.compressorEnabled,
+      settings.compressorThreshold,
+      settings.compressorKnee,
+      settings.compressorRatio,
+      settings.limiterCeiling
+    ];
+    return `${videoId}:${JSON.stringify(profile)}`;
   }
 
   function getVideo() {
@@ -142,6 +163,33 @@
     }
     source = meter = compressor = gain = limiter = null;
     initialized = false;
+    calibrationRestorePending = false;
+  }
+
+  async function restoreCachedCalibration(key, expectedVideo) {
+    try {
+      if (!key) return;
+      const cached = (await chrome.storage.local.get("calibrations")).calibrations?.[key];
+      if (video !== expectedVideo || gainCalibrated || !gain || !Number.isFinite(cached?.gainDb)) {
+        log("cached calibration skipped", {
+          hasCache: Number.isFinite(cached?.gainDb),
+          sameVideo: video === expectedVideo,
+          gainCalibrated
+        });
+        return;
+      }
+      currentGainDb = clamp(cached.gainDb, settings.maxCut, settings.maxBoost);
+      targetGainDb = currentGainDb;
+      gainCalibrated = true;
+      gain.gain.setValueAtTime(dbToLinear(currentGainDb), audioContext.currentTime);
+      log("cached calibration restored", { gainDb: currentGainDb });
+      updateOverlay();
+      sendStatus();
+    } catch (err) {
+      log("cached calibration unavailable", err);
+    } finally {
+      calibrationRestorePending = false;
+    }
   }
 
   async function setupForVideo(v) {
@@ -152,7 +200,9 @@
     lastLUFS = null;
     currentGainDb = 0;
     targetGainDb = 0;
-    firstMeasurementAt = performance.now();
+    gainCalibrated = false;
+    calibrationKey = getCalibrationKey();
+    firstMeasurementAt = 0;
 
     try {
       audioContext ||= new AudioContext();
@@ -206,9 +256,15 @@
 
       meter.port.onmessage = onMeterMessage;
       initialized = true;
+      calibrationRestorePending = true;
       updateOverlay();
       sendStatus();
-      log("audio graph initialized");
+      restoreCachedCalibration(calibrationKey, v);
+      log("audio graph initialized", {
+        videoId: calibrationKey.split(":")[0] || "unknown",
+        analysisSeconds: settings.analysisSeconds,
+        requiredBlocks: Math.max(10, Math.ceil(settings.analysisSeconds * 10))
+      });
     } catch (err) {
       console.error("[YTVN] 初始化失敗：", err);
       initialized = false;
@@ -217,7 +273,7 @@
     }
   }
 
-  function onMeterMessage(event) {
+  async function onMeterMessage(event) {
     const d = event.data;
     if (!d || d.type !== "loudness") return;
 
@@ -229,8 +285,32 @@
       return;
     }
 
-    const elapsed = (performance.now() - firstMeasurementAt) / 1000;
-    if (elapsed < settings.analysisSeconds) {
+    if (calibrationRestorePending) {
+      log("measurement held while cached calibration loads", { blocks: d.blocks });
+      updateOverlay();
+      sendStatus();
+      return;
+    }
+
+    if (d.blocks > 0 && firstMeasurementAt === 0) {
+      firstMeasurementAt = performance.now();
+      log("first valid loudness block received", {
+        blocks: d.blocks,
+        lufs: lastLUFS
+      });
+    }
+
+    const elapsed = firstMeasurementAt ? (performance.now() - firstMeasurementAt) / 1000 : 0;
+    const requiredBlocks = Math.max(10, Math.ceil(settings.analysisSeconds * 10));
+    if (elapsed < settings.analysisSeconds || d.blocks < requiredBlocks) {
+      if (d.blocks > 0 && d.blocks % 10 === 0) {
+        log("analysis in progress", {
+          blocks: d.blocks,
+          requiredBlocks,
+          elapsed: Number(elapsed.toFixed(1)),
+          lufs: Number(lastLUFS.toFixed(1))
+        });
+      }
       updateOverlay();
       sendStatus();
       return;
@@ -245,7 +325,27 @@
     }
     targetGainDb = desired;
 
-    currentGainDb += (targetGainDb - currentGainDb) * settings.smoothing;
+    if (!gainCalibrated) {
+      currentGainDb = targetGainDb;
+      gainCalibrated = true;
+      log("initial gain calibrated", {
+        blocks: d.blocks,
+        elapsed: Number(elapsed.toFixed(1)),
+        lufs: Number(lastLUFS.toFixed(1)),
+        gainDb: Number(currentGainDb.toFixed(1))
+      });
+      if (calibrationKey) {
+        const stored = await chrome.storage.local.get("calibrations");
+        await chrome.storage.local.set({
+          calibrations: {
+            ...stored.calibrations,
+            [calibrationKey]: { gainDb: currentGainDb }
+          }
+        });
+      }
+    } else {
+      currentGainDb += (targetGainDb - currentGainDb) * settings.smoothing;
+    }
     currentGainDb = clamp(currentGainDb, settings.maxCut, settings.maxBoost);
 
     gain.gain.setTargetAtTime(
