@@ -90,6 +90,10 @@ cd ..
 .\yt_volume_normalizer_venv\Scripts\python.exe .\yt_volume_normalizer\transcription_server.py
 ```
 
+### One-click startup on Windows
+
+You can double-click `start_transcription_server.bat` in the parent `chrome plugin` folder. It automatically uses `yt_volume_normalizer_venv` and starts the local service. Keep the command window open while using transcription; closing it stops the service.
+
 The default model is `large-v3-turbo`, which gives the best quality on a strong computer. The first start downloads the model from Hugging Face and requires several GB of disk space. NVIDIA CUDA is selected automatically when available; the Windows dependencies also install CUDA 12 cuBLAS/cuDNN runtime libraries required by Faster-Whisper. If GPU initialization still fails, the server falls back to CPU `int8` mode.
 
 Environment overrides:
