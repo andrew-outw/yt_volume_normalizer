@@ -21,6 +21,7 @@
   let settings = { ...DEFAULTS };
   let audioContext = null;
   let source = null;
+  const mediaSources = new WeakMap();
   let meter = null;
   let compressor = null;
   let gain = null;
@@ -35,6 +36,9 @@
   let calibrationRestorePending = false;
   let lastVideoSignature = "";
   let calibrationKey = "";
+  let workletReadyPromise = null;
+  let initializationPromise = null;
+  let transcription = { state: "off", text: "" };
 
   const log = (...a) => console.debug("[YTVN]", ...a);
 
@@ -51,6 +55,7 @@
     const videoId = url.searchParams.get("v") || url.pathname.match(/^\/shorts\/([^/]+)/)?.[1];
     if (!videoId) return "";
     const profile = [
+      2,
       settings.targetLUFS,
       settings.maxBoost,
       settings.maxCut,
@@ -103,6 +108,7 @@
       <div>響度：<b id="ytvn-lufs">--</b></div>
       <div>目標：<b id="ytvn-target">--</b></div>
       <div>Gain：<b id="ytvn-gain">0.0 dB</b></div>
+      <div class="ytvn-transcription">轉錄：<b id="ytvn-transcription">關閉</b></div>
       <div class="ytvn-help">F8 開/關</div>
     `;
     Object.assign(el.style, {
@@ -125,6 +131,7 @@
     style.textContent = `
       #ytvn-overlay .ytvn-title{font-weight:700;font-size:13px;margin-bottom:4px}
       #ytvn-overlay .ytvn-help{margin-top:5px;color:#aaa;font-size:10px}
+      #ytvn-overlay .ytvn-transcription{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.12);max-width:300px;white-space:normal;overflow-wrap:anywhere}
     `;
     document.documentElement.append(style);
     document.body.append(el);
@@ -148,6 +155,9 @@
     el.querySelector("#ytvn-target").textContent = `${settings.targetLUFS.toFixed(1)} LUFS`;
     el.querySelector("#ytvn-gain").textContent =
       `${currentGainDb >= 0 ? "+" : ""}${currentGainDb.toFixed(1)} dB`;
+    el.querySelector("#ytvn-transcription").textContent = transcription.state === "off"
+      ? "關閉"
+      : transcription.text || transcription.state;
   }
 
   async function loadSettings() {
@@ -192,11 +202,16 @@
     }
   }
 
-  async function setupForVideo(v) {
-    if (!v || video === v && initialized) return;
+  function getVideoSignature(v) {
+    return v?.currentSrc || v?.src || "";
+  }
+
+  async function setupForVideo(v, force = false) {
+    if (!v || video === v && initialized && !force && lastVideoSignature === getVideoSignature(v)) return;
 
     disconnectGraph();
     video = v;
+    lastVideoSignature = getVideoSignature(v);
     lastLUFS = null;
     currentGainDb = 0;
     targetGainDb = 0;
@@ -216,7 +231,11 @@
       // build prevents Web Audio access, see the README troubleshooting note.
       try { v.crossOrigin = "anonymous"; } catch {}
 
-      source = audioContext.createMediaElementSource(v);
+      source = mediaSources.get(v);
+      if (!source) {
+        source = audioContext.createMediaElementSource(v);
+        mediaSources.set(v, source);
+      }
       meter = new AudioWorkletNode(audioContext, "ytvn-loudness-meter", {
         numberOfInputs: 1,
         numberOfOutputs: 1,
@@ -242,17 +261,17 @@
       limiter.attack.value = 0.001;
       limiter.release.value = 0.05;
 
-      source.connect(meter);
-
       if (settings.compressorEnabled) {
-        meter.connect(compressor);
+        source.connect(compressor);
         compressor.connect(gain);
       } else {
-        meter.connect(gain);
+        source.connect(gain);
       }
 
       gain.connect(limiter);
-      limiter.connect(audioContext.destination);
+      // Measure after all processing so calibration follows the actual output.
+      limiter.connect(meter);
+      meter.connect(audioContext.destination);
 
       meter.port.onmessage = onMeterMessage;
       initialized = true;
@@ -362,20 +381,32 @@
     const v = getVideo();
     if (!v) return false;
 
+    if (initializationPromise) return initializationPromise;
+
+    initializationPromise = (async () => {
     try {
       audioContext ||= new AudioContext();
       if (audioContext.state === "suspended") await audioContext.resume();
 
-      if (!meter) {
+      if (!workletReadyPromise) {
         const workletUrl = chrome.runtime.getURL("src/loudness-worklet.js");
-        await audioContext.audioWorklet.addModule(workletUrl);
+        workletReadyPromise = audioContext.audioWorklet.addModule(workletUrl);
       }
+      await workletReadyPromise;
 
-      await setupForVideo(v);
+      await setupForVideo(v, video === v && lastVideoSignature !== getVideoSignature(v));
       return initialized;
     } catch (e) {
       console.error("[YTVN] Audio 啟動失敗：", e);
+      if (workletReadyPromise && !meter) workletReadyPromise = null;
       return false;
+    }
+    })();
+
+    try {
+      return await initializationPromise;
+    } finally {
+      initializationPromise = null;
     }
   }
 
@@ -402,6 +433,13 @@
           gainDb: currentGainDb,
           targetLUFS: settings.targetLUFS
         });
+        return;
+      }
+
+      if (msg.type === "TRANSCRIPTION_EVENT") {
+        transcription = { state: msg.status?.state || "off", text: msg.status?.text || "" };
+        updateOverlay();
+        sendResponse({ ok: true });
         return;
       }
 
@@ -444,9 +482,13 @@
 
   function observeYouTube() {
     const v = getVideo();
-    if (v && v !== video) {
+    if (!v) return;
+
+    const signatureChanged = v !== video || lastVideoSignature !== getVideoSignature(v);
+    if (signatureChanged || !initialized) {
       v.addEventListener("play", () => enableAudio(), { once: true });
-      if (!v.paused) enableAudio();
+      v.addEventListener("loadeddata", () => enableAudio(), { once: true });
+      if (!v.paused || v.readyState >= HTMLMediaElement.HAVE_METADATA) enableAudio();
     }
   }
 

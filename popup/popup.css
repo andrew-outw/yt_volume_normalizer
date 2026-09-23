@@ -20,3 +20,6 @@ input{accent-color:#f44336}
 .custom-row input{width:110px}
 .custom-row small{display:block;color:#888;font-size:10px}
 .hidden{display:none}
+.transcription-panel{padding:10px 12px;border:1px solid #383838;border-radius:8px;background:#181818;margin-top:12px}
+.transcription-panel .switchrow{margin:0}
+.transcription-panel .sub{font-size:11px;line-height:1.4;margin-top:5px}

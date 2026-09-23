@@ -3,12 +3,23 @@ async function getTab() {
   return tab;
 }
 
+const transcriptionEnabled = document.getElementById("transcriptionEnabled");
+const transcriptionStatus = document.getElementById("transcriptionStatus");
+
 async function send(msg) {
   const tab = await getTab();
   if (!tab?.id || !/^https:\/\/(www\.)?youtube\.com\//.test(tab.url || "")) {
     throw new Error("請先開啟 YouTube 分頁");
   }
   return chrome.tabs.sendMessage(tab.id, msg);
+}
+
+async function sendBackground(msg) {
+  const tab = await getTab();
+  if (!tab?.id || !/^https:\/\/(www\.)?youtube\.com\//.test(tab.url || "")) {
+    throw new Error("請先開啟 YouTube 分頁");
+  }
+  return chrome.runtime.sendMessage({ ...msg, tabId: tab.id });
 }
 
 function updateCustomVisibility() {
@@ -46,10 +57,29 @@ async function refresh() {
       ? `Gain：${s.gainDb >= 0 ? "+" : ""}${s.gainDb.toFixed(1)} dB`
       : "Gain：--";
     message.textContent = s.initialized ? "已連接目前播放器" : "尚未連接播放器";
+    const transcription = await sendBackground({ type: "GET_TRANSCRIPTION_STATUS" });
+    transcriptionEnabled.checked = ["capturing", "connected", "partial", "final", "reconnecting"].includes(transcription.state);
+    transcriptionStatus.textContent = transcription.state === "off"
+      ? "需要先啟動本機 Python 辨識服務"
+      : transcription.text || `狀態：${transcription.state}`;
   } catch {
     message.textContent = "請重新整理 YouTube 頁面後再試。";
   }
 }
+
+transcriptionEnabled.addEventListener("change", async () => {
+  try {
+    const type = transcriptionEnabled.checked ? "START_TRANSCRIPTION" : "STOP_TRANSCRIPTION";
+    const result = await sendBackground({ type });
+    if (!result?.ok) throw new Error(result?.error || "轉錄服務啟動失敗");
+    transcriptionStatus.textContent = transcriptionEnabled.checked
+      ? "正在啟動本機辨識服務..."
+      : "已關閉即時語音轉文字";
+  } catch (e) {
+    transcriptionEnabled.checked = false;
+    transcriptionStatus.textContent = e.message;
+  }
+});
 
 enabled.addEventListener("change", async () => {
   try {

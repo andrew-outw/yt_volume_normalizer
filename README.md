@@ -1,6 +1,6 @@
-# YouTube Volume Normalizer v1.1.2
+# YouTube Volume Normalizer v1.2.0
 
-Chrome Manifest V3 extension that normalizes YouTube playback loudness.
+Chrome Manifest V3 extension that normalizes YouTube playback loudness and optionally provides local real-time speech-to-text for the active YouTube tab.
 
 ## Download
 
@@ -22,6 +22,9 @@ Get the latest pre-packaged release:
 - YouTube SPA/navigation detection.
 - Popup and options page.
 - No external JavaScript or remote code.
+- Optional local real-time transcription for the active YouTube tab.
+- Captured tab audio is routed back to the speakers, so enabling transcription does not mute playback.
+- Automatic CUDA detection for Faster-Whisper on compatible NVIDIA systems.
 
 ## Development Installation
 
@@ -57,9 +60,51 @@ Do not put the parent folder itself inside the ZIP.
 
 ## Important technical note
 
-The loudness meter follows the structure of ITU-R BS.1770: K-weighting, 400 ms blocks, 75% overlap, absolute gating and a relative gate. The browser audio graph still depends on the YouTube media element exposing audio to Web Audio. If a particular Chrome/YouTube player build outputs silence after connecting the media element to Web Audio, the next implementation should use a tab-capture architecture instead.
+The loudness meter follows the structure of ITU-R BS.1770: K-weighting, 400 ms blocks, 75% overlap, absolute gating and a relative gate. The normalizer processes the YouTube media element locally. Optional transcription uses Chrome tab capture in an offscreen document and routes the captured audio back to the output before sampling it.
 
 This extension does not download, modify, or transmit YouTube media. It processes the playback audio locally in the browser.
+
+## Optional local real-time transcription
+
+The popup includes an `即時語音轉文字` switch. When enabled, the extension captures audio from the current YouTube tab and sends PCM audio only to `127.0.0.1:8765`; it does not send audio to a cloud API. The transcript is displayed in the YouTube overlay.
+
+The complete startup order is:
+
+1. Start `transcription_server.py` and wait until it reports `listening on ws://127.0.0.1:8765`.
+2. Load or reload the unpacked extension from `chrome://extensions/`.
+3. Refresh the YouTube tab.
+4. Enable the normalizer, then enable `即時語音轉文字` in the popup.
+
+Install the Python dependencies from PowerShell in this folder:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-transcription.txt
+```
+
+Start the local service before enabling the switch:
+
+```powershell
+.\.venv\Scripts\python.exe transcription_server.py
+```
+
+The default model is `large-v3-turbo`, which gives the best quality on a strong computer. The first start downloads the model from Hugging Face and requires several GB of disk space. NVIDIA CUDA is selected automatically when available; otherwise the server uses CPU `int8` mode.
+
+Environment overrides:
+
+```powershell
+$env:YTVN_WHISPER_MODEL = "large-v3-turbo"
+$env:YTVN_WHISPER_DEVICE = "cuda"
+$env:YTVN_WHISPER_COMPUTE = "float16"
+```
+
+For lower VRAM, use `medium` or `small`. Reload the unpacked extension after changing `manifest.json`, then reload the YouTube tab. The toggle can be turned off at any time and the capture stream is released immediately.
+
+### Troubleshooting transcription
+
+- `辨識服務連線中斷`: the Python service is not listening on port `8765`; start it with the command above.
+- No audio while transcription is enabled: reload the extension and the YouTube tab so the latest tab-audio routing code is active.
+- First startup is slow: the selected Whisper model is downloaded and loaded into GPU memory on the first run.
 
 
 ## v1.1.2 changes
