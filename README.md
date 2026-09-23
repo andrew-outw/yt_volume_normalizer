@@ -90,7 +90,7 @@ cd ..
 .\yt_volume_normalizer_venv\Scripts\python.exe .\yt_volume_normalizer\transcription_server.py
 ```
 
-The default model is `large-v3-turbo`, which gives the best quality on a strong computer. The first start downloads the model from Hugging Face and requires several GB of disk space. NVIDIA CUDA is selected automatically when available; otherwise the server uses CPU `int8` mode.
+The default model is `large-v3-turbo`, which gives the best quality on a strong computer. The first start downloads the model from Hugging Face and requires several GB of disk space. NVIDIA CUDA is selected automatically when available; the Windows dependencies also install CUDA 12 cuBLAS/cuDNN runtime libraries required by Faster-Whisper. If GPU initialization still fails, the server falls back to CPU `int8` mode.
 
 Environment overrides:
 
@@ -107,6 +107,7 @@ For lower VRAM, use `medium` or `small`. Reload the unpacked extension after cha
 - `辨識服務連線中斷`: the Python service is not listening on port `8765`; start it with the command above.
 - No audio while transcription is enabled: reload the extension and the YouTube tab so the latest tab-audio routing code is active.
 - First startup is slow: the selected Whisper model is downloaded and loaded into GPU memory on the first run.
+- `cublas64_12.dll is not found`: reinstall with `pip install -r .\yt_volume_normalizer\requirements-transcription.txt`, then restart the Python service.
 
 
 ## v1.1.2 changes

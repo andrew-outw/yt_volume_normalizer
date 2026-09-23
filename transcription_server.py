@@ -8,8 +8,33 @@ import sys
 from typing import Optional
 
 import numpy as np
-from faster_whisper import WhisperModel
 import websockets
+
+
+CUDA_DLL_HANDLES = []
+
+
+def add_cuda_dll_directories():
+    if os.name != "nt" or not hasattr(os, "add_dll_directory"):
+        return
+    site_packages = os.path.join(sys.prefix, "Lib", "site-packages")
+    directories = []
+    for relative_path in (
+        ("nvidia", "cublas", "bin"),
+        ("nvidia", "cudnn", "bin"),
+        ("nvidia", "cuda_nvrtc", "bin"),
+    ):
+        directory = os.path.join(site_packages, *relative_path)
+        if os.path.isdir(directory):
+            directories.append(directory)
+            CUDA_DLL_HANDLES.append(os.add_dll_directory(directory))
+    if directories:
+        os.environ["PATH"] = os.pathsep.join(directories + [os.environ.get("PATH", "")])
+
+
+add_cuda_dll_directories()
+
+from faster_whisper import WhisperModel
 
 HOST = "127.0.0.1"
 PORT = 8765
@@ -38,7 +63,15 @@ def choose_runtime():
 
 RUNTIME_DEVICE, RUNTIME_COMPUTE = choose_runtime()
 logging.info("loading %s on %s (%s)", MODEL_NAME, RUNTIME_DEVICE, RUNTIME_COMPUTE)
-MODEL = WhisperModel(MODEL_NAME, device=RUNTIME_DEVICE, compute_type=RUNTIME_COMPUTE)
+try:
+    MODEL = WhisperModel(MODEL_NAME, device=RUNTIME_DEVICE, compute_type=RUNTIME_COMPUTE)
+except Exception as error:
+    if RUNTIME_DEVICE != "cuda":
+        raise
+    logging.warning("CUDA model unavailable (%s); falling back to CPU int8", error)
+    RUNTIME_DEVICE = "cpu"
+    RUNTIME_COMPUTE = "int8"
+    MODEL = WhisperModel(MODEL_NAME, device=RUNTIME_DEVICE, compute_type=RUNTIME_COMPUTE)
 
 
 def transcribe(audio: np.ndarray, language: Optional[str], task: str):
