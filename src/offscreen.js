@@ -1,6 +1,7 @@
 let capture = null;
 let audioContext = null;
 let processor = null;
+let silentOutput = null;
 let source = null;
 let websocket = null;
 let activeTabId = null;
@@ -77,8 +78,9 @@ async function stopCapture() {
   websocket?.close();
   websocket = null;
   processor?.disconnect();
+  silentOutput?.disconnect();
   source?.disconnect();
-  processor = source = null;
+  processor = silentOutput = source = null;
   capture?.getTracks().forEach(track => track.stop());
   capture = null;
   pendingSamples = [];
@@ -104,9 +106,13 @@ async function startCapture({ tabId, streamId }) {
   inputSampleRate = audioContext.sampleRate;
   source = audioContext.createMediaStreamSource(capture);
   processor = audioContext.createScriptProcessor(4096, 2, 1);
+  silentOutput = audioContext.createGain();
+  silentOutput.gain.value = 0;
   processor.onaudioprocess = event => downsampleTo16k(event.inputBuffer.getChannelData(0));
   source.connect(audioContext.destination);
   source.connect(processor);
+  processor.connect(silentOutput);
+  silentOutput.connect(audioContext.destination);
   connectSocket();
   postStatus({ state: "capturing", text: "正在擷取分頁音訊..." });
 }

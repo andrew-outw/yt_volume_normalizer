@@ -6,9 +6,18 @@ async function getTab() {
 const transcriptionEnabled = document.getElementById("transcriptionEnabled");
 const transcriptionStatus = document.getElementById("transcriptionStatus");
 
+function isYouTubeUrl(url) {
+  try {
+    const host = new URL(url).hostname;
+    return host === "youtube.com" || host.endsWith(".youtube.com");
+  } catch {
+    return false;
+  }
+}
+
 async function send(msg) {
   const tab = await getTab();
-  if (!tab?.id || !/^https:\/\/(www\.)?youtube\.com\//.test(tab.url || "")) {
+  if (!tab?.id || !isYouTubeUrl(tab.url || "")) {
     throw new Error("請先開啟 YouTube 分頁");
   }
   return chrome.tabs.sendMessage(tab.id, msg);
@@ -16,7 +25,7 @@ async function send(msg) {
 
 async function sendBackground(msg) {
   const tab = await getTab();
-  if (!tab?.id || !/^https:\/\/(www\.)?youtube\.com\//.test(tab.url || "")) {
+  if (!tab?.id || !isYouTubeUrl(tab.url || "")) {
     throw new Error("請先開啟 YouTube 分頁");
   }
   return chrome.runtime.sendMessage({ ...msg, tabId: tab.id });
@@ -36,8 +45,15 @@ async function applyTarget(value) {
 }
 
 async function refresh() {
+  let playerStatus;
   try {
-    const s = await send({ type: "GET_STATUS" });
+    playerStatus = await send({ type: "GET_STATUS" });
+  } catch {
+    message.textContent = "請重新整理 YouTube 頁面後再試。";
+  }
+
+  if (playerStatus) {
+    const s = playerStatus;
     enabled.checked = !!s.enabled;
     const value = Number(s.targetLUFS);
     if (value >= -30 && value <= -6 && Number.isFinite(value)) {
@@ -57,13 +73,16 @@ async function refresh() {
       ? `Gain：${s.gainDb >= 0 ? "+" : ""}${s.gainDb.toFixed(1)} dB`
       : "Gain：--";
     message.textContent = s.initialized ? "已連接目前播放器" : "尚未連接播放器";
+  }
+
+  try {
     const transcription = await sendBackground({ type: "GET_TRANSCRIPTION_STATUS" });
     transcriptionEnabled.checked = ["capturing", "connected", "partial", "final", "reconnecting"].includes(transcription.state);
     transcriptionStatus.textContent = transcription.state === "off"
       ? "需要先啟動本機 Python 辨識服務"
       : transcription.text || `狀態：${transcription.state}`;
-  } catch {
-    message.textContent = "請重新整理 YouTube 頁面後再試。";
+  } catch (error) {
+    transcriptionStatus.textContent = error.message || "無法取得轉錄狀態";
   }
 }
 

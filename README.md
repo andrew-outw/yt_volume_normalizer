@@ -1,4 +1,4 @@
-# YouTube Volume Normalizer v1.2.0
+# YouTube Volume Normalizer v1.2.1
 
 Chrome Manifest V3 extension that normalizes YouTube playback loudness and optionally provides local real-time speech-to-text for the active YouTube tab.
 

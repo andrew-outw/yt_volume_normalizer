@@ -13,12 +13,13 @@ async function ensureOffscreen() {
 
 async function startTranscription(tabId) {
   const tab = await chrome.tabs.get(tabId);
-  if (!/^https:\/\/(www\.)?youtube\.com\//.test(tab.url || "")) {
+  const hostname = new URL(tab.url || "").hostname;
+  if (!(hostname === "youtube.com" || hostname.endsWith(".youtube.com"))) {
     throw new Error("請先開啟 YouTube 分頁");
   }
   await ensureOffscreen();
   const streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
-  sessions.set(tabId, { status: "starting", text: "" });
+  sessions.set(tabId, { state: "starting", text: "" });
   await chrome.runtime.sendMessage({
     target: "offscreen",
     type: "START_CAPTURE",
