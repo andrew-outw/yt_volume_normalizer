@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Volume Normalizer",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Automatically normalizes YouTube playback loudness and optionally transcribes tab audio locally in real time.",
   "minimum_chrome_version": "116",
   "permissions": [

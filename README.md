@@ -1,4 +1,4 @@
-# YouTube Volume Normalizer v1.2.1
+# YouTube Volume Normalizer v1.2.2
 
 Chrome Manifest V3 extension that normalizes YouTube playback loudness and optionally provides local real-time speech-to-text for the active YouTube tab.
 
@@ -25,6 +25,8 @@ Get the latest pre-packaged release:
 - Optional local real-time transcription for the active YouTube tab.
 - Captured tab audio is routed back to the speakers, so enabling transcription does not mute playback.
 - Automatic CUDA detection for Faster-Whisper on compatible NVIDIA systems.
+- The YouTube overlay can be dragged and resized; its position and size are remembered locally.
+- Configurable transcription history, with three recent sentences shown by default.
 
 ## Development Installation
 
@@ -95,6 +97,12 @@ cd ..
 You can double-click `start_transcription_server.bat` in the parent `chrome plugin` folder. It automatically uses `yt_volume_normalizer_venv` and starts the local service. Keep the command window open while using transcription; closing it stops the service.
 
 The default model is `large-v3-turbo`, which gives the best quality on a strong computer. The first start downloads the model from Hugging Face and requires several GB of disk space. NVIDIA CUDA is selected automatically when available; the Windows dependencies also install CUDA 12 cuBLAS/cuDNN runtime libraries required by Faster-Whisper. If GPU initialization still fails, the server falls back to CPU `int8` mode.
+
+### Overlay controls
+
+- Drag the `Volume Normalizer` title to move the overlay.
+- Drag the handle in the lower-right corner to resize it.
+- Open `進階設定` and change `轉錄保留句數` to show 1 to 20 recent sentences. The default is 3.
 
 Environment overrides:
 

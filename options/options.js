@@ -11,7 +11,8 @@ const DEFAULTS = {
   compressorAttack: 0.005,
   compressorRelease: 0.25,
   limiterCeiling: -1,
-  showOverlay: true
+  showOverlay: true,
+  transcriptionHistoryLimit: 3
 };
 
 const PRESETS = {
@@ -49,7 +50,8 @@ function fmt(id, value) {
     targetLUFS: "LUFS", maxBoost: "dB", maxCut: "dB",
     analysisSeconds: "秒", smoothing: "",
     compressorThreshold: "dB", compressorKnee: "dB", compressorRatio: ":1",
-    compressorAttack: "秒", compressorRelease: "秒", limiterCeiling: "dB"
+    compressorAttack: "秒", compressorRelease: "秒", limiterCeiling: "dB",
+    transcriptionHistoryLimit: "句"
   };
   if (id === "compressorEnabled" || id === "showOverlay") return value ? "開啟" : "關閉";
   const n = Number(value);

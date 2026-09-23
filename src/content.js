@@ -15,7 +15,8 @@
     compressorAttack: 0.005,
     compressorRelease: 0.25,
     limiterCeiling: -1,
-    showOverlay: true
+    showOverlay: true,
+    transcriptionHistoryLimit: 3
   };
 
   let settings = { ...DEFAULTS };
@@ -39,6 +40,7 @@
   let workletReadyPromise = null;
   let initializationPromise = null;
   let transcription = { state: "off", text: "" };
+  let overlayGeometry = null;
 
   const log = (...a) => console.debug("[YTVN]", ...a);
 
@@ -110,6 +112,7 @@
       <div>Gain：<b id="ytvn-gain">0.0 dB</b></div>
       <div class="ytvn-transcription">轉錄：<b id="ytvn-transcription">關閉</b></div>
       <div class="ytvn-help">F8 開/關</div>
+      <div class="ytvn-resize-handle" aria-hidden="true"></div>
     `;
     Object.assign(el.style, {
       position: "fixed",
@@ -124,24 +127,103 @@
       borderRadius: "8px",
       font: "12px/1.55 Arial,sans-serif",
       boxShadow: "0 4px 20px rgba(0,0,0,.35)",
-      pointerEvents: "none",
+      pointerEvents: "auto",
+      resize: "none",
+      overflow: "hidden",
       backdropFilter: "blur(6px)"
     });
     const style = document.createElement("style");
     style.textContent = `
-      #ytvn-overlay .ytvn-title{font-weight:700;font-size:13px;margin-bottom:4px}
+      #ytvn-overlay .ytvn-title{font-weight:700;font-size:13px;margin-bottom:4px;cursor:move;user-select:none}
       #ytvn-overlay .ytvn-help{margin-top:5px;color:#aaa;font-size:10px}
       #ytvn-overlay .ytvn-transcription{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.12);max-width:300px;white-space:normal;overflow-wrap:anywhere}
+      #ytvn-overlay .ytvn-resize-handle{position:absolute;right:2px;bottom:2px;width:12px;height:12px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 45%,#aaa 46%,#aaa 55%,transparent 56%),linear-gradient(135deg,transparent 60%,#aaa 61%,#aaa 70%,transparent 71%)}
     `;
     document.documentElement.append(style);
     document.body.append(el);
+    setupOverlayInteraction(el);
+    restoreOverlayGeometry(el);
     return el;
   }
-  
+
+  function restoreOverlayGeometry(el) {
+    chrome.storage.local.get({ overlayGeometry: null }).then(({ overlayGeometry: saved }) => {
+      if (!saved || !document.body.contains(el)) return;
+      overlayGeometry = saved;
+      Object.assign(el.style, {
+        left: `${saved.left}px`,
+        top: `${saved.top}px`,
+        right: "auto",
+        bottom: "auto",
+        width: `${saved.width}px`,
+        height: `${saved.height}px`
+      });
+    }).catch(() => {});
+  }
+
+  function saveOverlayGeometry(el) {
+    const rect = el.getBoundingClientRect();
+    overlayGeometry = {
+      left: Math.round(rect.left),
+      top: Math.round(rect.top),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height)
+    };
+    chrome.storage.local.set({ overlayGeometry }).catch(() => {});
+  }
+
+  function setupOverlayInteraction(el) {
+    const title = el.querySelector(".ytvn-title");
+    const handle = el.querySelector(".ytvn-resize-handle");
+    let operation = null;
+
+    function move(event) {
+      if (!operation) return;
+      if (operation.type === "drag") {
+        const left = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, operation.left + event.clientX - operation.x));
+        const top = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, operation.top + event.clientY - operation.y));
+        el.style.left = `${left}px`;
+        el.style.top = `${top}px`;
+        el.style.right = "auto";
+        el.style.bottom = "auto";
+      } else {
+        el.style.width = `${Math.max(190, operation.width + event.clientX - operation.x)}px`;
+        el.style.height = `${Math.max(100, operation.height + event.clientY - operation.y)}px`;
+      }
+    }
+
+    function end() {
+      if (!operation) return;
+      saveOverlayGeometry(el);
+      operation = null;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+    }
+
+    title.addEventListener("pointerdown", event => {
+      const rect = el.getBoundingClientRect();
+      operation = { type: "drag", x: event.clientX, y: event.clientY, left: rect.left, top: rect.top };
+      title.setPointerCapture?.(event.pointerId);
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end, { once: true });
+      event.preventDefault();
+    });
+
+    handle.addEventListener("pointerdown", event => {
+      operation = { type: "resize", x: event.clientX, y: event.clientY, width: el.offsetWidth, height: el.offsetHeight };
+      handle.setPointerCapture?.(event.pointerId);
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end, { once: true });
+      event.preventDefault();
+      event.stopPropagation();
+    });
+  }
+
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "sync" || !changes.showOverlay) return;
-    settings.showOverlay = !!changes.showOverlay.newValue;
-    ensureOverlay();
+    if (areaName !== "sync") return;
+    if (changes.showOverlay) settings.showOverlay = !!changes.showOverlay.newValue;
+    if (changes.transcriptionHistoryLimit) settings.transcriptionHistoryLimit = Number(changes.transcriptionHistoryLimit.newValue) || 3;
+    if (changes.showOverlay) ensureOverlay();
     updateOverlay();
   });
 
@@ -437,7 +519,13 @@
       }
 
       if (msg.type === "TRANSCRIPTION_EVENT") {
-        transcription = { state: msg.status?.state || "off", text: msg.status?.text || "" };
+        const text = msg.status?.text || "";
+        const limit = Math.max(1, Math.min(20, Number(settings.transcriptionHistoryLimit) || 3));
+        const sentences = text.split(/(?<=[。！？!?])\s*/).filter(Boolean);
+        transcription = {
+          state: msg.status?.state || "off",
+          text: sentences.slice(-limit).join(" ")
+        };
         updateOverlay();
         sendResponse({ ok: true });
         return;
