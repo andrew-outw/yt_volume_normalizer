@@ -21,6 +21,14 @@ if not exist "%SERVER%" (
     exit /b 1
 )
 
+powershell.exe -NoProfile -Command "if (Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue) { exit 0 } else { exit 1 }" >nul 2>&1
+if not errorlevel 1 (
+    echo 語音辨識服務已經在執行中：ws://127.0.0.1:8765
+    echo 不需要再次啟動，請直接使用 Chrome 擴充功能。
+    pause
+    exit /b 0
+)
+
 echo YouTube Volume Normalizer 語音辨識服務啟動中...
 echo 請保持此視窗開啟。看到 listening on ws://127.0.0.1:8765 即可使用。
 echo.

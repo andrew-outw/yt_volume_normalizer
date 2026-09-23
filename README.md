@@ -112,6 +112,7 @@ For lower VRAM, use `medium` or `small`. Reload the unpacked extension after cha
 - No audio while transcription is enabled: reload the extension and the YouTube tab so the latest tab-audio routing code is active.
 - First startup is slow: the selected Whisper model is downloaded and loaded into GPU memory on the first run.
 - `cublas64_12.dll is not found`: reinstall with `pip install -r .\yt_volume_normalizer\requirements-transcription.txt`, then restart the Python service.
+- `WinError 10048` or port `8765` is already in use: the service is already running; do not start a second window. The one-click launcher detects this automatically.
 
 
 ## v1.1.2 changes
