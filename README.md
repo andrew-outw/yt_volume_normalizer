@@ -78,14 +78,16 @@ The complete startup order is:
 Install the Python dependencies from PowerShell in this folder:
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-transcription.txt
+cd ..
+py -m venv yt_volume_normalizer_venv
+.\yt_volume_normalizer_venv\Scripts\python.exe -m pip install -r .\yt_volume_normalizer\requirements-transcription.txt
 ```
 
 Start the local service before enabling the switch:
 
 ```powershell
-.\.venv\Scripts\python.exe transcription_server.py
+cd ..
+.\yt_volume_normalizer_venv\Scripts\python.exe .\yt_volume_normalizer\transcription_server.py
 ```
 
 The default model is `large-v3-turbo`, which gives the best quality on a strong computer. The first start downloads the model from Hugging Face and requires several GB of disk space. NVIDIA CUDA is selected automatically when available; otherwise the server uses CPU `int8` mode.
